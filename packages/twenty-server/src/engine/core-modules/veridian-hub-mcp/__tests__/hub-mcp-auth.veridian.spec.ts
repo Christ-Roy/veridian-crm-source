@@ -123,18 +123,35 @@ describe('VeridianHubMcpAuthService (CONTRAT-MCP)', () => {
     });
   });
 
-  it('honours a Hub-signed tenant only if the user is a member of it', async () => {
+  it('honours a Hub-signed tenant the user is a member of', async () => {
     expect(
       await setup({ tenantWorkspaceId: 'ws-other' }).service.authenticate(
         sign({ tenant_id: 't-1' }),
       ),
     ).toMatchObject({ accessToken: 'twenty-token-for-ws-other' });
+  });
+
+  it('refuses by name a tenant the AI chose but cannot reach, never another workspace', async () => {
+    const { service, accessTokenService } = setup({ tenantWorkspaceId: null });
+
+    expect(
+      await service.authenticate(sign({ tenant_id: 't-unknown' })),
+    ).toMatchObject({
+      kind: 'refused',
+      status: 403,
+      error: 'tenant_not_linked',
+    });
 
     expect(
       await setup({ tenantWorkspaceId: 'ws-stranger' }).service.authenticate(
         sign({ tenant_id: 't-2' }),
       ),
-    ).toMatchObject({ kind: 'refused', status: 403 });
+    ).toMatchObject({
+      kind: 'refused',
+      status: 403,
+      error: 'tenant_forbidden',
+    });
+    expect(accessTokenService.generateAccessToken).not.toHaveBeenCalled();
   });
 
   it('refuses a token for another audience', async () => {
