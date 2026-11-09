@@ -44,6 +44,7 @@ n'y figure ; `scripts/ci/check-ee-integrity.sh` le prouve à chaque push.
 | `POST /api/hub/users/sync`, `GET /api/hub/users` | copie nom, email et suppression ; liste pour l'audit | §3.8 |
 | `GET /api/users/by-email` | workspaces d'une adresse : sous-domaine, plan, source, `trial_status`, `trial_ends_at` (accès agent, reconcile) | §5.12 |
 | `POST /api/tenants/update-plan` | plan posé par le Hub (`free`, `pro`, `business`, `enterprise`), stocké sans effet, avec `trial_status` et `trial_ends_at` ; idempotent, plan offert immunisé (409) | CONTRAT-BILLING §3 |
+| `POST /mcp` avec le JWT du Hub | porte MCP unique du Hub : ES256 vérifié par le JWKS du Hub (cache 1 h), `iss`, `aud`, `exp` ; utilisateur par `hub_user_id`, inconnu = 401 sans création ; espace par l'appartenance (ou `tenant_id` signé par le Hub), jamais par l'IA ; échangé contre le jeton d'accès Twenty de l'utilisateur, outils et droits natifs (`veridian-hub-mcp/`, `VERIDIAN_HUB_MCP_ISSUER` et `_AUDIENCE`, coupé sans elles) | CONTRAT-MCP |
 | `GET /welcome` | rebond `auto=1` une seule fois ; après déconnexion, en iframe ou après un essai : page « Continuer » sans `auto` | §6bis.8.0 |
 
 `HubOnlyIdentityGuard` refuse inscription, connexion par mot de passe, invitations, changement d'email ou de
@@ -97,3 +98,5 @@ Image officielle sans coupure : registry.npmjs.org, unpkg.com, twenty-telemetry.
 démarrage et à l'inscription ; dans le navigateur, twenty-icons.com et tradingview. Notre image : silence sur
 démarrage complet et parcours, témoin vu, navigateur sans hôte tiers. Épreuves vues échouer : limite remise
 à 5, fichier Enterprise modifié, envoi par nom, envoi par IP directe.
+
+**Pool PostgreSQL (09/11/2026)** : `veridian-pg/pg-pool-resilience.util.ts`, étalé dans `core.datasource.ts` et `workspace-query-executor.service.ts` : connexion bornée (`PG_POOL_CONNECTION_TIMEOUT_MS`, 10 s), keepalive TCP, durée de vie maximale (`PG_POOL_MAX_LIFETIME_S`, 30 min). Pendant une bascule pg-saas, l'entrée TCP accepte sans qu'aucun primaire réponde : sans borne, `pool.connect()` attendait sans fin (pages à 180 s). Spec sur un socket muet, vue échouer sans la borne.
