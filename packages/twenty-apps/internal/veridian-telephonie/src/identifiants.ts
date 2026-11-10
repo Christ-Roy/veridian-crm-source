@@ -51,10 +51,8 @@ export const APPEL_LINKED_TIMELINE_ACTIVITY_TYPE_UNIVERSAL_IDENTIFIER =
 export const TEXT_MESSAGE_LINKED_TIMELINE_ACTIVITY_TYPE_UNIVERSAL_IDENTIFIER =
   'ffb00bad-6200-43ac-a7bb-bb2dcac8d8a8';
 
-export const APPELS_NAVIGATION_MENU_ITEM_UNIVERSAL_IDENTIFIER =
-  'dbd38f4a-5352-4b80-9521-4d301b5c4753';
-export const TEXT_MESSAGES_NAVIGATION_MENU_ITEM_UNIVERSAL_IDENTIFIER =
-  '40a33bf8-e626-4c97-82d2-00f700100583';
+// Retirés le 10/11/2026 (Robert : pas d'Appels ni de SMS dans la barre latérale, ils vivent dans la fiche).
+// Identifiants réservés : dbd38f4a-5352-4b80-9521-4d301b5c4753, 40a33bf8-e626-4c97-82d2-00f700100583.
 
 export const DEFAULT_ROLE_UNIVERSAL_IDENTIFIER =
   '9e86979b-b988-449f-8a81-b607b10234f8';
@@ -80,6 +78,7 @@ export const SMS_PERSONNE_VIEW = {
     envoyeLe: 'cdfebda8-535e-4710-8126-4af0e2a7b580',
     texte: 'd9b7534a-285c-4a92-aad0-9f23627db014',
     canal: '877c2b6e-6a39-4199-b25a-c1d1172c85cd',
+    piecesJointes: '67442bb8-7ecc-4072-8682-c9e5f7e4eb29',
   },
   sort: '8185281d-b17c-4540-9ce3-688fe2d84878',
   filtrePersonne: '3de78213-286e-4c6d-bd8b-c605e428bd81',
@@ -89,3 +88,7 @@ export const APPELS_TAB_UNIVERSAL_IDENTIFIER = 'efbe683c-4f2c-4d06-bee2-a4b079bd
 export const APPELS_TAB_WIDGET_UNIVERSAL_IDENTIFIER = 'd0753bcb-c57b-47a9-89f7-547c271cd796';
 export const SMS_TAB_UNIVERSAL_IDENTIFIER = 'bb7c8499-966b-4c34-846e-4082e2ab9d71';
 export const SMS_TAB_WIDGET_UNIVERSAL_IDENTIFIER = 'f5a7f137-3b41-4080-9fec-b802a53bbb95';
+
+// Rôle de la clé API posée sur le téléphone : lire les personnes, écrire appels et SMS, téléverser l'audio.
+export const TELEPHONE_ROLE_UNIVERSAL_IDENTIFIER =
+  '60406d82-290f-4059-87ca-45270e8e792f';

@@ -14,6 +14,10 @@ class Normalisation(unittest.TestCase):
                      "+330612345678"):
             self.assertEqual(c.normaliser_numero(brut), "+33612345678", brut)
 
+    def test_indicatif_double_comme_twenty(self):
+        self.assertEqual(c.normaliser_numero("+3333612345678"), "+33612345678")
+        self.assertEqual(c.normaliser_numero("+33336123456"), "+33336123456")
+
     def test_codes_courts_noms_et_masques_sans_numero(self):
         for brut in ("660", "CIC", "Telegram", "", None, "36179", "+12"):
             self.assertIsNone(c.normaliser_numero(brut), brut)
@@ -65,9 +69,9 @@ class Sources(unittest.TestCase):
             entrant = c.appel(1794322382233, "+33612345678", 10, "1", "Alice", "PIXEL_8_PRO")
             sortant = c.appel(1794322385000, "+33612345678", 10, "2", "Alice", "PIXEL_8_PRO")
             orphelins = c.associer_enregistrements([sortant, entrant], enregistrements)
-            self.assertEqual(entrant["_fichier"].name, "20261110_155305_in.ogg")
+            self.assertEqual(entrant["_fichiers"]["enregistrement"][0].name, "20261110_155305_in.ogg")
             self.assertEqual(entrant["transcription"], "[ 0.0- 2.0] Allô")
-            self.assertNotIn("_fichier", sortant)
+            self.assertNotIn("_fichiers", sortant)
             self.assertEqual(orphelins, ["20261110_120000_out.ogg"])
 
 
@@ -104,6 +108,26 @@ class Plan(unittest.TestCase):
         existant.update(id="r1", personId=None)
         _, complements, _ = c.planifier("appels", [self.voulu], [existant], self.index)
         self.assertEqual(complements[0][1], {"personId": "alice"})
+
+    def test_fichiers_completes_seulement_si_le_champ_est_vide(self):
+        message = c.message(1, "+33612345678", "1", "", "", "GALAXY_S10E", canal="MMS")
+        message["_fichiers"] = {"piecesJointes": [Path("mms1-piece2.jpg")]}
+        vide = {k: message[k] for k in c.CHAMPS["textMessages"] if k in message}
+        vide.update(id="m1", piecesJointes=[], personId="alice")
+        plein = dict(vide, piecesJointes=[{"fileId": "f", "label": "mms1-piece2.jpg"}])
+        _, complements, _ = c.planifier("textMessages", [message], [vide], self.index)
+        self.assertEqual(complements[0][2], {"piecesJointes": [Path("mms1-piece2.jpg")]})
+        _, complements, _ = c.planifier("textMessages", [message], [plein], self.index)
+        self.assertEqual(complements, [])
+
+    def test_meme_appel_vu_a_la_seconde_par_termux_ne_se_duplique_pas(self):
+        # Le même appel : adb le voit à la milliseconde, Termux à la seconde.
+        existant = {k: self.voulu[k] for k in c.CHAMPS["appels"] if k in self.voulu}
+        existant.update(id="r1", personId="alice", debutLe="2026-11-10T14:53:02.233Z")
+        termux = c.appel(1794322382000, "+33612345678", 10, "1", "Alice", "PIXEL_8_PRO")
+        self.assertNotEqual(termux["idSource"], existant["idSource"])
+        creations, complements, _ = c.planifier("appels", [termux], [existant], self.index)
+        self.assertEqual((creations, complements), ([], []))
 
     def test_numero_inconnu_reste_sans_lien(self):
         inconnu = c.appel(1, "+33600000000", 5, "1", "", "PIXEL_8_PRO")

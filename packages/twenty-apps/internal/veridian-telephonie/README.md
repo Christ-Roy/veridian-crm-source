@@ -10,11 +10,23 @@ Les appels et les SMS de Robert dans la timeline de chaque personne du CRM.
 | objet `textMessage` (SMS et messages) | sens, canal (SMS, MMS, WhatsApp, Telegram), date, texte, aperçu, numéro, pièces jointes (FILES), appareil, `idSource` unique |
 | relations `person` ↔ `appels` / `textMessages` | rattachement à une personne, `SET_NULL` si la personne est supprimée |
 | types d'activité `appelLinked`, `textMessageLinked` | Twenty écrit seul la ligne sur la timeline de la personne au rattachement, **ancrée à la date de l'appel ou du message** (`happensAtFieldUniversalIdentifier`), pas au moment de l'import |
-| entrées de menu Appels, SMS | listes filtrables |
 | onglets **Appels** et **SMS** de la fiche Person (après Calendar) | la relation en tableau (titre, début, enregistrement, transcription ; aperçu, date, canal), du plus récent au plus ancien, filtrée sur la fiche courante (`isCurrentRecordSelected`) |
 
 Aucun patch du fork, aucune fonction serveur (le code client est coupé chez Veridian) : uniquement le mécanisme
 natif des apps de Twenty v2.56 (`twenty-sdk`). Le rôle par défaut n'accorde rien.
+
+Les pièces jointes des MMS (images, vidéos) vont dans `piecesJointes` (colonne de l'onglet SMS, aperçu natif
+au clic). L'audio se lit dans l'aperçu grâce au patch `veridian-audio` du front (sans lui, un clic télécharge).
+
+## L'agent du téléphone (sans serveur ni tâche planifiée)
+
+Robert (10/11/2026) : le téléphone parle directement au CRM. `ingestion/telephone.py` tourne sous Termux sur
+le Pixel, démarré par Termux:Boot et relancé par termux-services. Il se réveille à chaque enregistrement JemRec
+fini (inotify) et au plus tard toutes les 2 minutes ; il ne contacte le CRM que si le journal d'appels, les SMS
+ou les enregistrements ont changé. Il transcrit lui-même avec whisper.cpp (modèle `small`, priorité basse). Sa
+clé porte le rôle « Téléphone » de l'app (personnes en lecture, appels et SMS en écriture, upload), pas Admin.
+Termux lit le journal à la seconde : le plan rapproche donc aussi par numéro, seconde et sens (`cle_seconde`),
+sans doublon avec l'historique importé par `mail`. Installation : `crm-telephonie telephone installer`.
 
 L'audio vit **une fois** dans le stockage de Twenty (sauvegardé avec le CRM) ; `~/sauvegardes/appels-pixel/`
 reste la source brute sur `mail`. Un clic sur l'enregistrement l'ouvre dans le navigateur, qui le lit.
@@ -52,7 +64,8 @@ chose. Un dossier Twenty s'ouvre et se ferme sans naviguer ; « People » en est
   arrivé après) et laisse intact ce qui est posé, rattachement manuel compris.
 - **Aucune personne créée** : rattachement par numéro E.164 contre les téléphones des personnes du workspace.
   Inconnu ou porté par deux personnes : pas de lien. L'import des personnes appartient à la session `crm-contacts`.
-- **`app apply` toujours en `--no-prune`** (la commande l'impose) : un champ retiré du source ne supprime rien.
+- **`app apply` en `--no-prune` par défaut** : un champ retiré du source ne supprime rien. `--prune` retire ce qui a
+  quitté le source (entrées de menu retirées le 10/11/2026) ; sans `--yes`, Twenty refuse de supprimer un objet ou un champ.
 - 🔴 **`twenty app uninstall` supprime les objets de l'app ET leurs données** (appels, SMS, fichiers). Ne jamais
   désinstaller ; un identifiant de `src/identifiants.ts` ne change jamais (changer l'un = supprimer l'entité).
 - Les vues des onglets restent en visibilité workspace : une vue `UNLISTED` n'est pas servie au navigateur et le
