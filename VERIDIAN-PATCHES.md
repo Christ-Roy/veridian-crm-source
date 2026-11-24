@@ -49,7 +49,7 @@ n'y figure ; `scripts/ci/check-ee-integrity.sh` le prouve à chaque push.
 | `POST /api/sso/issue-magic-link`, `GET /auth/token?t=` | rebond ; `hub_user_id` d'abord, email pour rattacher un compte sans lien | §6bis.8 |
 | `POST /api/tenants/provision`, `DELETE /api/tenants/:id` | crée utilisateur et workspace ; supprime le workspace et ses données (signature `${ts}.`) | §5.1, §5 |
 | `POST /api/tenants/:id/sync-member`, `POST /api/veridian/workspaces/:id/attach-member` | ajoute un membre | §5.18.3, §5.22.2 |
-| `POST /api/tenants/:id/remove-member` | retire un membre, données conservées | §5.19.2 |
+| `POST /api/tenants/:id/remove-member` | retire un membre, données conservées : appartenance et fiche `workspaceMember` en suppression douce (une fiche seule ferme l'espace à tous), rejoué il répare, `attach-member` restaure la fiche (VER-203) | §5.19.2, §5.20 |
 | `POST /api/hub/users/sync`, `GET /api/hub/users` | copie nom, email et suppression ; liste pour l'audit | §3.8 |
 | `GET /api/users/by-email` | workspaces d'une adresse : sous-domaine, plan, source, `trial_status`, `trial_ends_at` (accès agent, reconcile) | §5.12 |
 | `POST /api/tenants/update-plan` | plan posé par le Hub (`free`, `pro`, `business`, `enterprise`), stocké sans effet, avec `trial_status` et `trial_ends_at` ; idempotent, plan offert immunisé (409) | CONTRAT-BILLING §3 |
@@ -57,7 +57,7 @@ n'y figure ; `scripts/ci/check-ee-integrity.sh` le prouve à chaque push.
 | `GET /welcome` | rebond `auto=1` une seule fois ; après déconnexion, en iframe ou après un essai : page « Continuer » sans `auto` | §6bis.8.0 |
 
 `HubOnlyIdentityGuard` refuse inscription, connexion par mot de passe, invitations, changement d'email ou de
-nom, suppression de compte, de membre ou de workspace sur les résolveurs Nest, et `updateWorkspace` s'il rouvre ce que le provisioning ferme (`editableProfileFields` limité à la photo, `isPasswordAuthEnabled`, lien d'invitation). La 2FA vit au Hub seul (parente, 07/11/2026) : ses mutations sont refusées, `isTwoFactorAuthenticationEnforced` aussi. `WorkspaceMemberIdentityPreQueryHook` ferme le renommage sur les API générées. Le lien porte un login token Twenty : 15 min, à usage unique, consommé par `/verify`. Liens Hub dans
+nom, suppression de compte, de membre ou de workspace sur les résolveurs Nest, et `updateWorkspace` s'il rouvre ce que le provisioning ferme (`editableProfileFields` limité à la photo, `isPasswordAuthEnabled`, lien d'invitation). La 2FA vit au Hub seul (parente, 07/11/2026) : ses mutations sont refusées, `isTwoFactorAuthenticationEnforced` aussi. `WorkspaceMemberIdentityPreQueryHook` ferme le renommage sur les API générées, et le repointage d'une fiche vers un autre compte (`userId`, un admin enfermait un membre dehors). Aucun chemin n'ajoute un humain sans le Hub : `scripts/ci/preuve-porte-membres.py` (VER-245). Le lien porte un login token Twenty : 15 min, à usage unique, consommé par `/verify`. Liens Hub dans
 `core.keyValuePair`, aucune table neuve. Variables : `HUB_API_SECRET`, `HUB_API_SECRET_NEXT`, `HUB_URL`,
 `HUB_SERVER_ADMIN_EMAILS`. Sans secret, les routes répondent 503.
 
