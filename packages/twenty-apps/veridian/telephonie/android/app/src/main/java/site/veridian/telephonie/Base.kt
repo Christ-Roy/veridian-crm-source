@@ -30,6 +30,10 @@ class Base(ctx: Context) : SQLiteOpenHelper(ctx, "telephonie.db", null, 1) {
 
     override fun onUpgrade(db: SQLiteDatabase, ancienne: Int, nouvelle: Int) {}
 
+    /** Retour arrière de l'app : une base écrite par une version plus récente se garde telle quelle (la file n'est pas
+     *  perdue) au lieu de faire planter l'app. Règle qui va avec : un changement de schéma ne fait qu'AJOUTER. */
+    override fun onDowngrade(db: SQLiteDatabase, ancienne: Int, nouvelle: Int) {}
+
     data class Element(val pluriel: String, val idSource: String, val flux: String, val voulu: String,
                        val empreinte: String, val evenement: Double?, val essais: Int, val signale: Long?)
 
@@ -90,6 +94,17 @@ class Base(ctx: Context) : SQLiteOpenHelper(ctx, "telephonie.db", null, 1) {
             arrayOf(System.currentTimeMillis() + delaiMs, if (compterEssai) 1 else 0, e.pluriel, e.idSource))
     }
 
+    /** Fiche créée : revérifiée tout de suite, compteur à zéro (les refus d'avant ne comptent pas comme des vérifications). */
+    @Synchronized
+    fun reverifierANeuf(e: Element) {
+        writableDatabase.execSQL("UPDATE file SET prochain=?, essais=0 WHERE pluriel=? AND idSource=?",
+            arrayOf(System.currentTimeMillis() + 1_000, e.pluriel, e.idSource))
+    }
+
+    /** Tout ce qui attend un délai peut repartir (le CRM vient d'être prêt). */
+    @Synchronized
+    fun reveillerTout() { writableDatabase.execSQL("UPDATE file SET prochain=0") }
+
     /** Les enregistrements déjà portés dont le numéro vient d'apparaître dans le CRM : à replanifier (rattachement). */
     @Synchronized
     fun oublierNumeros(numeros: Collection<String>): Int {
@@ -110,6 +125,15 @@ class Base(ctx: Context) : SQLiteOpenHelper(ctx, "telephonie.db", null, 1) {
 
     @Synchronized
     fun oublierTout() { writableDatabase.delete("synchro", null, null) }
+
+    /** Le téléphone change de CRM : les empreintes, les personnes et les fichiers rattachés à l'ancien n'y valent plus
+     *  rien (leurs identifiants n'existent pas dans le nouveau). La file, elle, reste. */
+    @Synchronized
+    fun oublierAncienCrm() {
+        oublierTout()
+        writableDatabase.delete("televersements", null, null)
+        writableDatabase.delete("kv", "cle='personnes.index'", null)
+    }
 
     // ------------------------------------------------------------ téléversements
 
