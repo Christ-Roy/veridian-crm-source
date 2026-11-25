@@ -145,6 +145,7 @@ const welcome = async ({
     config,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   await controller.welcome(
@@ -299,7 +300,7 @@ describe('CONTRAT-HUB §6bis.8.0', () => {
       );
 
       expect(lien).toBe(`${SERVER}/auth/token?t=jeton`);
-      expect(query.mock.calls[0][1][2]).toBeNull();
+      expect(query.mock.calls[1][1][2]).toBeNull();
     });
 
     it('5. issue-magic-link suit un next de son origine et son espace', async () => {
@@ -313,7 +314,27 @@ describe('CONTRAT-HUB §6bis.8.0', () => {
       expect(lien).toBe(
         `${SERVER}/auth/token?t=jeton&next=%2Fobjects%2Fpeople`,
       );
-      expect(query.mock.calls[0][1][2]).toBe('acme');
+      expect(query.mock.calls[1][1][2]).toBe('acme');
+    });
+
+    it('5. issue-magic-link refuse l’espace demandé s’il est suspendu, pas le seul fait d’en avoir un', async () => {
+      const { service, query } = fauxService();
+
+      query.mockResolvedValue([
+        { subdomain: 'acme', activationStatus: 'SUSPENDED', workspaceId: 'w' },
+        { subdomain: 'autre', activationStatus: 'ACTIVE', workspaceId: 'w2' },
+      ] as never);
+
+      expect(
+        await service.issueMagicLinkUrl(
+          'h',
+          'a@b.fr',
+          'https://acme.crm.staging.veridian.site/objects/people',
+        ),
+      ).toBe('workspace_suspended');
+      expect(await service.issueMagicLinkUrl('h', 'a@b.fr')).toBe(
+        `${SERVER}/auth/token?t=jeton`,
+      );
     });
 
     it('6. revoke_sessions coupe les sessions de l’utilisateur', async () => {
