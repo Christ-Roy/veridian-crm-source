@@ -2,7 +2,12 @@ import { isNonEmptyString } from '@sniptt/guards';
 
 import { type HubMcpClaims } from 'src/engine/core-modules/veridian-hub-mcp/utils/verify-hub-mcp-token.util';
 
-export type HubDelegation = { app: string; jti: string; scopes: string[] };
+export type HubDelegation = {
+  app: string;
+  jti: string;
+  scopes: string[];
+  subject: 'member' | 'integration';
+};
 
 export type DelegationCheck =
   | { kind: 'none' }
@@ -10,18 +15,46 @@ export type DelegationCheck =
   | { kind: 'refused'; status: 401 | 403; error: string; message: string };
 
 const MAX_LIFETIME_S = 120;
+const INTEGRATION_PREFIX = 'integration:';
 
 // The pairs and scopes this app accepts (INTEGRATIONS-NATIVES D2, D4): the target keeps the last word.
 // Create and complete only: no destructive tool ever enters this list.
-const DELEGATED_TOOLS = new Map([
+// The application is the one that brings the tool (veridian-crm-apps/liaisons).
+const LIAISONS_APPLICATION = '1a1ab23e-60e5-4eca-be1f-718c96055c79';
+
+type DelegatedTool = {
+  app: string;
+  scopes: string[];
+  // `integration`: nobody is behind the call (an event relayed by the Hub). It acts as the app, under the app's own role.
+  subject: HubDelegation['subject'];
+  applicationUniversalIdentifier: string;
+};
+
+const DELEGATED_TOOLS = new Map<string, DelegatedTool>([
   [
     'app_envoyer_au_crm',
     {
       app: 'app:prospection',
       scopes: ['crm:societe.ecrire', 'crm:tache.ecrire'],
+      subject: 'member',
+      applicationUniversalIdentifier: LIAISONS_APPLICATION,
+    },
+  ],
+  [
+    'app_reponse_humaine',
+    {
+      app: 'app:notifuse',
+      scopes: ['crm:tache.ecrire'],
+      subject: 'integration',
+      applicationUniversalIdentifier: LIAISONS_APPLICATION,
     },
   ],
 ]);
+
+export const findDelegatedApplication = (
+  toolName: unknown,
+): string | undefined =>
+  DELEGATED_TOOLS.get(toolName as string)?.applicationUniversalIdentifier;
 
 const refused = (
   status: 401 | 403,
@@ -63,9 +96,23 @@ export const readDelegation = (claims: HubMcpClaims): DelegationCheck => {
     );
   }
 
+  const isIntegration = claims.sub.startsWith(INTEGRATION_PREFIX);
+
+  if (
+    isIntegration &&
+    claims.sub !== `${INTEGRATION_PREFIX}${claims.tenant_id}`
+  ) {
+    return refused(
+      403,
+      'tenant_forbidden',
+      'An integration only acts in its own Hub space.',
+    );
+  }
+
   return {
     kind: 'ok',
     delegation: {
+      subject: isIntegration ? 'integration' : 'member',
       app: act.sub,
       jti: claims.jti,
       scopes: (claims.scope ?? '').split(' ').filter(isNonEmptyString),
@@ -91,6 +138,7 @@ export const isDelegatedCallAllowed = (
   return (
     rule !== undefined &&
     rule.app === delegation.app &&
+    rule.subject === delegation.subject &&
     rule.scopes.every((scope) => delegation.scopes.includes(scope))
   );
 };
