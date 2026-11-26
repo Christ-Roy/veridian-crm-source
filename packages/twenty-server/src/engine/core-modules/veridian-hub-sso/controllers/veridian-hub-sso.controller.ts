@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   Post,
   Query,
@@ -28,7 +29,10 @@ import {
   isSuspensionReason,
   VeridianHubSuspensionService,
 } from 'src/engine/core-modules/veridian-hub-sso/services/veridian-hub-suspension.service';
-import { buildSignInPage } from 'src/engine/core-modules/veridian-hub-sso/utils/build-sign-in-page.util';
+import {
+  buildSignInPage,
+  SIGN_IN_PAGE_CONTENT_SECURITY_POLICY,
+} from 'src/engine/core-modules/veridian-hub-sso/utils/build-sign-in-page.util';
 import {
   isHubRole,
   isHubRoleVersion,
@@ -94,6 +98,8 @@ export class VeridianHubSsoController {
     private readonly veridianGrantService: VeridianGrantService,
   ) {}
 
+  private readonly signatureLogger = new Logger('VeridianHubSignature');
+
   // Returns false once it has answered: the caller stops there.
   private async isAuthenticHubCall(
     request: RawBodyRequest<Request>,
@@ -135,6 +141,13 @@ export class VeridianHubSsoController {
       response.status(401).json({ error: 'invalid_signature' });
 
       return false;
+    }
+
+    // Veridian (26/11/2026): counted before VERIDIAN_HMAC_REQUIRE_V2 is set (a day without any v1 call).
+    if (version === 'v1') {
+      this.signatureLogger.warn(
+        `hub_signature_v1 ${JSON.stringify({ method: request.method, route: (request.originalUrl ?? '').split('?')[0].replace(/[0-9a-f-]{36}/gi, ':id') })}`,
+      );
     }
 
     if (!(await this.veridianHubSsoService.consumeHubSignature(signature))) {
@@ -301,6 +314,7 @@ export class VeridianHubSsoController {
     if (isBlocked) {
       return response
         .status(200)
+        .setHeader('Content-Security-Policy', SIGN_IN_PAGE_CONTENT_SECURITY_POLICY)
         .type('html')
         .send(buildSignInPage(bounce));
     }
